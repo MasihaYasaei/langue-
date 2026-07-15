@@ -1,4 +1,5 @@
 import { STARTER_WORDS } from "./data.js";
+import { EDITO_UNITS, getDailyLesson } from "./edito-data.js";
 import {
   STORAGE_KEY,
   LEITNER_INTERVALS,
@@ -28,6 +29,7 @@ let sessionCorrect = 0;
 let sessionAnswered = false;
 let lastAnswerCorrect = false;
 let toastTimer;
+let editoTab = "units";
 
 function allWords() {
   return [...STARTER_WORDS, ...state.customWords]
@@ -105,6 +107,7 @@ function showView(view) {
     dashboard: `${greeting()}, ${state.profile.name}`,
     review: "Révision du jour",
     words: "Mon vocabulaire",
+    edito: "Édito A2",
     progress: "Ma progression",
     settings: "Mes réglages"
   };
@@ -114,6 +117,7 @@ function showView(view) {
 
   if (view === "review") renderReviewSetup();
   if (view === "words") renderWords();
+  if (view === "edito") renderEdito();
   if (view === "progress") renderProgress();
   if (view === "settings") renderSettings();
 }
@@ -216,10 +220,12 @@ function renderReviewSetup() {
   $("#reviewEmpty").classList.toggle("hidden", cards.length > 0);
 }
 
-function startSession({ free = false } = {}) {
+function startSession({ free = false, wordsOverride = null } = {}) {
   const words = allWords();
   const limit = Number($("#sessionLimit").value) || 0;
-  if (free) {
+  if (wordsOverride) {
+    session = [...wordsOverride];
+  } else if (free) {
     session = [...words]
       .sort((a, b) => (state.progress[a.id]?.lastReview || 0) - (state.progress[b.id]?.lastReview || 0))
       .slice(0, 10);
@@ -244,22 +250,28 @@ function renderCard() {
   lastAnswerCorrect = false;
   $("#cardTheme").textContent = word.theme;
   $("#cardBox").textContent = progress.box ? `Boîte ${progress.box}` : "Nouveau";
-  $("#cardTranslation").textContent = word.translation;
   $("#answerInput").value = "";
   $("#answerInput").disabled = false;
   $("#answerForm").classList.remove("hidden");
   $("#dontKnow").classList.remove("hidden");
   $("#feedback").classList.add("hidden");
   $("#feedback").classList.remove("wrong");
+  $("#typedAnswer").textContent = "";
+  $("#cardDefinition").textContent = "";
+  $("#wordExample").textContent = "";
   $("#sessionCounter").textContent = `Carte ${sessionIndex + 1} sur ${session.length}`;
   $("#sessionScore").textContent = `${sessionCorrect} correcte${sessionCorrect > 1 ? "s" : ""}`;
   $("#sessionBar").style.width = `${Math.round((sessionIndex / session.length) * 100)}%`;
-  setTimeout(() => $("#answerInput").focus(), 80);
+  setTimeout(() => {
+    speak(word.term);
+    $("#answerInput").focus();
+  }, 120);
 }
 
 function revealAnswer(correct) {
   if (sessionAnswered) return;
   const word = session[sessionIndex];
+  const typed = $("#answerInput").value.trim();
   sessionAnswered = true;
   lastAnswerCorrect = correct;
   $("#answerForm").classList.add("hidden");
@@ -270,7 +282,9 @@ function revealAnswer(correct) {
   $("#feedbackMark").textContent = correct ? "✓" : "!";
   $("#feedbackLabel").textContent = correct ? "Bonne réponse" : "La bonne réponse";
   $("#correctTerm").textContent = word.term;
-  $("#wordExample").textContent = word.example || "Répète le mot à voix haute avant de continuer.";
+  $("#typedAnswer").textContent = typed ? `Ta réponse : ${typed}` : "Tu n’as pas proposé de réponse.";
+  $("#cardDefinition").textContent = word.definition || word.translation || "Définition non renseignée.";
+  $("#wordExample").textContent = word.example ? `Exemple : ${word.example}` : "Répète le mot à voix haute avant de continuer.";
   speak(word.term);
 }
 
@@ -327,14 +341,13 @@ function populateThemeFilter() {
 
 function filteredWords() {
   const query = normalizeAnswer($("#wordSearch").value);
-  const rawQuery = $("#wordSearch").value.trim().toLocaleLowerCase("fa");
   const theme = $("#themeFilter").value;
   const box = $("#boxFilter").value;
   return allWords().filter((word) => {
     const progress = state.progress[word.id] || freshProgress();
     const matchesQuery = !query
       || normalizeAnswer(word.term).includes(query)
-      || word.translation.toLocaleLowerCase("fa").includes(rawQuery)
+      || normalizeAnswer(word.definition || word.translation).includes(query)
       || normalizeAnswer(word.theme).includes(query);
     return matchesQuery && (theme === "all" || word.theme === theme) && (box === "all" || progress.box === Number(box));
   });
@@ -357,7 +370,7 @@ function renderWords() {
     const progress = state.progress[word.id] || freshProgress();
     const dots = [1, 2, 3, 4, 5].map((box) => `<i class="${box <= progress.box ? "filled" : ""}"></i>`).join("");
     return `<div class="word-row" data-word-id="${escapeHtml(word.id)}">
-      <div class="word-main"><strong lang="fr">${escapeHtml(word.term)}</strong><small dir="rtl" lang="fa">${escapeHtml(word.translation)}</small></div>
+      <div class="word-main"><strong lang="fr">${escapeHtml(word.term)}</strong><small>${escapeHtml(word.definition || word.translation)}</small></div>
       <span class="theme-tag">${escapeHtml(word.theme)}</span>
       <div class="word-progress"><span class="box-dots">${dots}</span><span>${progress.box ? `Boîte ${progress.box} · ${formatReviewDate(progress.nextReview)}` : "Nouveau"}</span></div>
       <div class="row-actions">
@@ -381,7 +394,7 @@ function openWordDialog(wordId = null) {
   $("#wordDialogTitle").textContent = word ? "Modifier le mot" : "Ajouter un mot";
   $("#editingWordId").value = word?.id || "";
   $("#wordTerm").value = word?.term || "";
-  $("#wordTranslation").value = word?.translation || "";
+  $("#wordTranslation").value = word?.definition || word?.translation || "";
   $("#wordTheme").value = word?.theme || "Mes mots";
   $("#wordExampleInput").value = word?.example || "";
   $("#wordDialog").showModal();
@@ -405,9 +418,9 @@ function saveCustomWord(event) {
 
   if (id) {
     const index = state.customWords.findIndex((word) => word.id === id);
-    if (index >= 0) state.customWords[index] = { ...state.customWords[index], term, translation, theme, example };
+    if (index >= 0) state.customWords[index] = { ...state.customWords[index], term, translation, definition: translation, theme, example };
   } else {
-    const newWord = { id: `custom-${Date.now()}`, term, translation, theme, example, custom: true };
+    const newWord = { id: `custom-${Date.now()}`, term, translation, definition: translation, theme, example, custom: true };
     state.customWords.push(newWord);
     state.progress[newWord.id] = freshProgress();
   }
@@ -479,7 +492,111 @@ function renderProgress() {
     .filter((item) => item.progress.incorrect > 0)
     .sort((a, b) => b.progress.incorrect - a.progress.incorrect)
     .slice(0, 5);
-  $("#hardWords").innerHTML = hardest.length ? hardest.map(({ word, progress }) => `<div class="hard-word"><span>${escapeHtml(word.term.charAt(0).toLowerCase())}</span><div><strong>${escapeHtml(word.term)}</strong><small dir="rtl" lang="fa">${escapeHtml(word.translation)}</small></div><b>${progress.incorrect} erreur${progress.incorrect > 1 ? "s" : ""}</b></div>`).join("") : `<div class="empty-list">Les mots difficiles apparaîtront après tes premières révisions.</div>`;
+  $("#hardWords").innerHTML = hardest.length ? hardest.map(({ word, progress }) => `<div class="hard-word"><span>${escapeHtml(word.term.charAt(0).toLowerCase())}</span><div><strong>${escapeHtml(word.term)}</strong><small>${escapeHtml(word.definition || word.translation)}</small></div><b>${progress.incorrect} erreur${progress.incorrect > 1 ? "s" : ""}</b></div>`).join("") : `<div class="empty-list">Les mots difficiles apparaîtront après tes premières révisions.</div>`;
+}
+
+function switchEditoTab(tab) {
+  editoTab = tab === "daily" ? "daily" : "units";
+  $$(".edito-tab").forEach((button) => button.classList.toggle("active", button.dataset.editoTab === editoTab));
+  $("#editoUnitsPanel").classList.toggle("hidden", editoTab !== "units");
+  $("#editoDailyPanel").classList.toggle("hidden", editoTab !== "daily");
+  if (editoTab === "daily") renderDailyTraining();
+}
+
+function unitProgress(unit) {
+  const started = unit.vocabulary.filter((word) => (state.progress[word.id]?.box || 0) > 0).length;
+  return { started, percent: Math.round((started / unit.vocabulary.length) * 100) };
+}
+
+function renderEdito() {
+  const started = STARTER_WORDS.filter((word) => (state.progress[word.id]?.box || 0) > 0).length;
+  $("#editoProgressValue").textContent = `${Math.round((started / STARTER_WORDS.length) * 100)}%`;
+  $("#unitGrid").innerHTML = EDITO_UNITS.map((unit) => {
+    const progress = unitProgress(unit);
+    return `<button class="unit-card" type="button" data-unit-id="${unit.id}" style="--unit-color:${unit.color}">
+      <span class="unit-number">${unit.number}</span><h3>${escapeHtml(unit.title)}</h3><p>${escapeHtml(unit.theme)}</p>
+      <div class="unit-card-footer"><span>${progress.started}/${unit.vocabulary.length} mots commencés</span><div class="unit-progress"><i style="width:${progress.percent}%"></i></div></div>
+    </button>`;
+  }).join("");
+  $$(".unit-card", $("#unitGrid")).forEach((button) => button.addEventListener("click", () => renderUnitDetail(button.dataset.unitId)));
+  switchEditoTab(editoTab);
+  renderDailyBadge();
+}
+
+function renderUnitDetail(unitId) {
+  const unit = EDITO_UNITS.find((item) => item.id === unitId);
+  if (!unit) return;
+  if (!state.edito.openedUnits.includes(unitId)) {
+    state.edito.openedUnits.push(unitId);
+    saveState();
+  }
+  const detail = $("#unitDetail");
+  detail.classList.remove("hidden");
+  detail.style.setProperty("--unit-color", unit.color);
+  detail.innerHTML = `<div class="unit-detail-head"><div><span class="eyebrow">Unité ${unit.number}</span><h3>${escapeHtml(unit.title)}</h3><p>${escapeHtml(unit.theme)}</p></div><button class="button button-primary" id="studyUnit" type="button">Étudier cette unité</button></div>
+    <div class="unit-objectives">${unit.objectives.map((item) => `<span>${escapeHtml(item)}</span>`).join("")}</div>
+    <div class="unit-content-grid"><div class="unit-column"><h4>Vocabulaire</h4><div class="unit-vocab-list">${unit.vocabulary.map((word) => `<div class="unit-vocab-item"><button type="button" data-speak="${escapeHtml(word.id)}" aria-label="Écouter ${escapeHtml(word.term)}">▶</button><div><strong>${escapeHtml(word.term)}</strong><span>${escapeHtml(word.definition)}</span></div></div>`).join("")}</div></div>
+    <div class="unit-column"><h4>Grammaire</h4><div class="grammar-list">${unit.grammar.map((point) => `<div class="grammar-point"><h5>${escapeHtml(point.title)}</h5><p>${escapeHtml(point.rule)}</p><em>${escapeHtml(point.example)}</em></div>`).join("")}</div></div></div>`;
+  $("#studyUnit").addEventListener("click", () => {
+    showView("review");
+    startSession({ wordsOverride: unit.vocabulary });
+  });
+  $$('[data-speak]', $("#unitDetail")).forEach((button) => button.addEventListener("click", () => {
+    const word = unit.vocabulary.find((item) => item.id === button.dataset.speak);
+    if (word) speak(word.term);
+  }));
+  detail.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function dailyState() {
+  const key = localDateKey();
+  state.edito.daily[key] ||= { vocab: false, grammar: false };
+  return state.edito.daily[key];
+}
+
+function renderDailyBadge() {
+  const value = dailyState();
+  const score = Number(value.vocab) + Number(value.grammar);
+  $("#dailyDoneBadge").textContent = `${score}/2`;
+  $("#dailyScore").textContent = `${score}/2`;
+}
+
+function renderDailyTraining() {
+  const lesson = getDailyLesson();
+  const daily = dailyState();
+  renderDailyBadge();
+  $("#dailyVocabTask").innerHTML = `<div class="daily-task-head"><span>Vocabulaire · Unité ${lesson.unit.number}</span></div><h4>La dictée du jour</h4><p>Écoute le mot et écris-le avec ses accents et son article.</p>
+    <button class="daily-listen" id="dailyListen" type="button">▶ Écouter le mot</button>
+    <form id="dailyVocabForm" class="daily-answer"><input id="dailyVocabInput" autocomplete="off" placeholder="Écris le mot entendu…" ${daily.vocab ? "disabled" : ""}><button class="button button-primary" ${daily.vocab ? "disabled" : ""}>Vérifier</button></form>
+    <div id="dailyVocabFeedback" class="daily-feedback${daily.vocab ? "" : " hidden"}">${daily.vocab ? `<strong>${escapeHtml(lesson.vocabulary.term)}</strong><p>${escapeHtml(lesson.vocabulary.definition)}</p><em>Exemple : ${escapeHtml(lesson.vocabulary.example)}</em>` : ""}</div>`;
+  $("#dailyGrammarTask").innerHTML = `<div class="daily-task-head"><span>Grammaire · Unité ${lesson.unit.number}</span></div><h4>${escapeHtml(lesson.grammarPoint.title)}</h4><p>${escapeHtml(lesson.grammarPoint.rule)}</p><em>${escapeHtml(lesson.grammarPoint.example)}</em>
+    <form id="dailyGrammarForm" class="grammar-options">${lesson.grammarPoint.quiz.options.map((option, index) => `<label class="grammar-option"><input type="radio" name="dailyGrammar" value="${index}" ${daily.grammar ? "disabled" : ""}><span>${escapeHtml(option)}</span></label>`).join("")}<button class="button button-primary" ${daily.grammar ? "disabled" : ""}>Valider</button></form>
+    <div id="dailyGrammarFeedback" class="daily-feedback${daily.grammar ? "" : " hidden"}">${daily.grammar ? `<strong>Réponse : ${escapeHtml(lesson.grammarPoint.quiz.options[lesson.grammarPoint.quiz.answer])}</strong><p>${escapeHtml(lesson.grammarPoint.quiz.explanation)}</p>` : ""}</div>`;
+  $("#dailyListen").addEventListener("click", () => speak(lesson.vocabulary.term));
+  $("#dailyVocabForm").addEventListener("submit", (event) => {
+    event.preventDefault();
+    const correct = isAnswerCorrect($("#dailyVocabInput").value, lesson.vocabulary);
+    $("#dailyVocabFeedback").classList.remove("hidden");
+    $("#dailyVocabFeedback").innerHTML = `<strong>${correct ? "Bravo !" : `Correction : ${escapeHtml(lesson.vocabulary.term)}`}</strong><p>${escapeHtml(lesson.vocabulary.definition)}</p><em>Exemple : ${escapeHtml(lesson.vocabulary.example)}</em>`;
+    daily.vocab = true;
+    reviewCard(state, lesson.vocabulary.id, correct ? "correct" : "again");
+    saveState();
+    renderDailyBadge();
+    $("#dailyVocabInput").disabled = true;
+    $("#dailyVocabForm button").disabled = true;
+  });
+  $("#dailyGrammarForm").addEventListener("submit", (event) => {
+    event.preventDefault();
+    const selected = $('input[name="dailyGrammar"]:checked', event.currentTarget);
+    if (!selected) return showToast("Choisis une réponse avant de valider.", "error");
+    const correct = Number(selected.value) === lesson.grammarPoint.quiz.answer;
+    $("#dailyGrammarFeedback").classList.remove("hidden");
+    $("#dailyGrammarFeedback").innerHTML = `<strong>${correct ? "Bonne réponse !" : `Réponse : ${escapeHtml(lesson.grammarPoint.quiz.options[lesson.grammarPoint.quiz.answer])}`}</strong><p>${escapeHtml(lesson.grammarPoint.quiz.explanation)}</p>`;
+    daily.grammar = true;
+    saveState();
+    renderDailyBadge();
+    $$("input, button", event.currentTarget).forEach((item) => { item.disabled = true; });
+  });
 }
 
 function renderSettings() {
@@ -570,6 +687,7 @@ function bindEvents() {
   $("#heroStart").addEventListener("click", () => showView("review"));
   $("#beginSession").addEventListener("click", () => startSession());
   $("#freePractice").addEventListener("click", () => startSession({ free: true }));
+  $$(".edito-tab").forEach((button) => button.addEventListener("click", () => switchEditoTab(button.dataset.editoTab)));
   $("#exitSession").addEventListener("click", () => {
     if (confirm("Quitter cette séance ? Les réponses déjà validées restent enregistrées.")) renderReviewSetup();
   });
@@ -605,6 +723,7 @@ function bindEvents() {
       state = loadState();
       renderDashboard();
       if (currentView === "words") renderWords();
+      if (currentView === "edito") renderEdito();
       if (currentView === "progress") renderProgress();
       showToast("Les données ont été mises à jour depuis un autre onglet.");
     }
@@ -619,7 +738,7 @@ function init() {
   bindEvents();
   renderDashboard();
   const requested = window.location.hash.slice(1);
-  const views = ["dashboard", "review", "words", "progress", "settings"];
+  const views = ["dashboard", "review", "words", "edito", "progress", "settings"];
   showView(views.includes(requested) ? requested : "dashboard");
   if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
     navigator.serviceWorker.register("./sw.js").catch(() => {});
