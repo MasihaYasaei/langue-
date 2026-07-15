@@ -39,9 +39,17 @@ export function normalizeAnswer(value = "") {
     .trim();
 }
 
+export function normalizeSpelling(value = "") {
+  return String(value)
+    .trim()
+    .toLocaleLowerCase("fr")
+    .replace(/[’]/g, "'")
+    .replace(/\s+/g, " ");
+}
+
 export function isAnswerCorrect(input, word) {
-  const accepted = [word.term, ...(word.alternatives || [])].map(normalizeAnswer);
-  return accepted.includes(normalizeAnswer(input));
+  const accepted = [word.term, ...(word.alternatives || [])].map(normalizeSpelling);
+  return accepted.includes(normalizeSpelling(input));
 }
 
 export function createInitialState(words, now = Date.now()) {
@@ -58,7 +66,8 @@ export function createInitialState(words, now = Date.now()) {
     progress,
     customWords: [],
     removedWordIds: [],
-    activity: {}
+    activity: {},
+    edito: { daily: {}, openedUnits: [] }
   };
 }
 
@@ -86,7 +95,11 @@ export function hydrateState(rawState, words, now = Date.now()) {
     progress: { ...(rawState.progress || {}) },
     customWords: Array.isArray(rawState.customWords) ? rawState.customWords : [],
     removedWordIds: Array.isArray(rawState.removedWordIds) ? rawState.removedWordIds : [],
-    activity: rawState.activity && typeof rawState.activity === "object" ? rawState.activity : {}
+    activity: rawState.activity && typeof rawState.activity === "object" ? rawState.activity : {},
+    edito: {
+      daily: rawState.edito?.daily && typeof rawState.edito.daily === "object" ? rawState.edito.daily : {},
+      openedUnits: Array.isArray(rawState.edito?.openedUnits) ? rawState.edito.openedUnits : []
+    }
   };
 
   for (const word of [...words, ...state.customWords]) {
@@ -211,6 +224,7 @@ export function parseImport(text, existingWords = []) {
       id: `custom-${Date.now()}-${index}`,
       term: parts[0],
       translation: parts[1],
+      definition: parts[1],
       theme: parts[2] || "Mes mots",
       example: parts[3] || "",
       custom: true
