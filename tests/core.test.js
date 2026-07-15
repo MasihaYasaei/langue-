@@ -23,8 +23,9 @@ test("normalise les accents, articles et espaces", () => {
   assert.equal(normalizeAnswer("un hébergement"), "hebergement");
 });
 
-test("accepte une réponse sans accent et une variante", () => {
-  assert.equal(isAnswerCorrect("hebergement", WORDS[0]), true);
+test("vérifie précisément les accents et accepte une variante déclarée", () => {
+  assert.equal(isAnswerCorrect("hebergement", WORDS[0]), false);
+  assert.equal(isAnswerCorrect("un hébergement", WORDS[0]), true);
   assert.equal(isAnswerCorrect("l'hébergement", WORDS[0]), true);
   assert.equal(isAnswerCorrect("hôtel", WORDS[0]), false);
 });
