@@ -1,0 +1,14 @@
+{
+  "name": "Mémora — Mon français A2",
+  "short_name": "Mémora",
+  "description": "Un carnet Leitner personnel pour apprendre le vocabulaire français A2.",
+  "lang": "fr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f7f7fb",
+  "theme_color": "#6d5dfc",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
