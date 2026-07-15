@@ -34,6 +34,10 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h11a3 3 0 0 1 3 3v13H7a2 2 0 0 1-2-2zM5 17a3 3 0 0 1 3-3h11M9 8h6"/></svg>
           <span>Vocabulaire</span>
         </button>
+        <button class="nav-item" type="button" data-view="edito">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H11v16H6.5A2.5 2.5 0 0 0 4 21.5zm16 0A2.5 2.5 0 0 0 17.5 3H13v16h4.5a2.5 2.5 0 0 1 2.5 2.5z"/></svg>
+          <span>Édito A2</span>
+        </button>
         <button class="nav-item" type="button" data-view="progress">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V9m6 10V5m6 14v-7m4 7H2"/></svg>
           <span>Progression</span>
@@ -78,7 +82,7 @@
                 Commencer la séance
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg>
               </button>
-              <button class="button button-ghost" type="button" data-go="words">Voir les mots</button>
+              <button class="button button-ghost" type="button" data-go="edito">Parcours Édito A2</button>
             </div>
           </div>
           <div class="hero-visual" aria-label="Progression quotidienne">
@@ -177,25 +181,25 @@
 
           <article class="flashcard">
             <div class="flashcard-meta"><span id="cardTheme">Thème</span><b id="cardBox">Nouveau</b></div>
-            <p class="card-prompt">Écris le mot ou l'expression en français</p>
-            <strong class="persian-prompt" id="cardTranslation" dir="rtl" lang="fa">ترجمه</strong>
-            <p class="answer-hint">Les accents sont recommandés, mais ils ne bloquent pas une bonne réponse.</p>
+            <div class="audio-dictation">
+              <button class="dictation-listen" id="listenButton" type="button" aria-label="Écouter le mot" title="Réécouter le mot">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 10v4h3l4 3V7l-4 3zm10-1a4 4 0 0 1 0 6m2-8a7 7 0 0 1 0 10"/></svg>
+              </button>
+              <p class="card-prompt">Écoute, puis écris exactement ce que tu entends.</p>
+              <span>Tu peux réécouter autant de fois que nécessaire.</span>
+            </div>
+            <p class="answer-hint">Les articles, les apostrophes et les accents comptent dans la correction.</p>
 
             <form id="answerForm" autocomplete="off">
               <label class="sr-only" for="answerInput">Réponse en français</label>
-              <div class="answer-row">
-                <input id="answerInput" type="text" lang="fr" placeholder="Écris ta réponse…" spellcheck="false" autocapitalize="none" required>
-                <button class="speak-button" id="listenButton" type="button" aria-label="Écouter la prononciation" title="Écouter">
-                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 10v4h3l4 3V7l-4 3zm10-1a4 4 0 0 1 0 6m2-8a7 7 0 0 1 0 10"/></svg>
-                </button>
-              </div>
+              <div class="answer-row"><input id="answerInput" type="text" lang="fr" placeholder="Écris le mot entendu…" spellcheck="false" autocapitalize="none" required></div>
               <button class="button button-primary wide" type="submit">Vérifier</button>
             </form>
             <button class="text-button dont-know" id="dontKnow" type="button">Je ne sais pas encore</button>
 
             <div class="feedback hidden" id="feedback" aria-live="polite">
               <span class="feedback-mark" id="feedbackMark">✓</span>
-              <div class="feedback-copy"><small id="feedbackLabel">Bonne réponse</small><strong id="correctTerm">le mot</strong><p id="wordExample"></p></div>
+              <div class="feedback-copy"><small id="feedbackLabel">Bonne réponse</small><strong id="correctTerm">le mot</strong><p class="typed-answer" id="typedAnswer"></p><div class="definition-box"><b>Définition</b><p id="cardDefinition"></p><em id="wordExample"></em></div></div>
               <div class="rating-buttons">
                 <button class="rating again" type="button" data-rating="again"><span>↺</span><b>À revoir</b><small>boîte 1</small></button>
                 <button class="rating good" type="button" data-rating="correct"><span>✓</span><b>Je savais</b><small>boîte suivante</small></button>
@@ -220,7 +224,7 @@
         </div>
         <article class="panel vocabulary-panel">
           <div class="filters">
-            <label class="search-field"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m16 16 4 4"/></svg><input id="wordSearch" type="search" placeholder="Rechercher un mot, une traduction…"></label>
+            <label class="search-field"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m16 16 4 4"/></svg><input id="wordSearch" type="search" placeholder="Rechercher un mot ou une définition…"></label>
             <select id="themeFilter" aria-label="Filtrer par thème"><option value="all">Tous les thèmes</option></select>
             <select id="boxFilter" aria-label="Filtrer par boîte"><option value="all">Toutes les boîtes</option><option value="0">Nouveaux</option><option value="1">Boîte 1</option><option value="2">Boîte 2</option><option value="3">Boîte 3</option><option value="4">Boîte 4</option><option value="5">Boîte 5</option></select>
           </div>
@@ -228,6 +232,36 @@
           <div class="word-list" id="wordList"></div>
           <div class="pagination"><button class="button button-soft" id="prevPage" type="button">← Précédent</button><span id="pageInfo">Page 1</span><button class="button button-soft" id="nextPage" type="button">Suivant →</button></div>
         </article>
+      </section>
+
+      <section class="view" id="view-edito" aria-label="Parcours Édito A2">
+        <div class="section-toolbar edito-toolbar">
+          <div><span class="section-label">PARCOURS DU MANUEL</span><h2>Édito A2</h2><p>Douze unités, du vocabulaire vivant et une grammaire progressive.</p></div>
+          <div class="edito-tabs" role="tablist" aria-label="Sections Édito A2">
+            <button class="edito-tab active" type="button" data-edito-tab="units">Les 12 unités</button>
+            <button class="edito-tab" type="button" data-edito-tab="daily">Entraînement du jour <b id="dailyDoneBadge">0/2</b></button>
+          </div>
+        </div>
+
+        <div id="editoUnitsPanel">
+          <article class="edito-intro">
+            <div><span class="section-label">TON PROGRAMME A2</span><h3>Travaille le manuel unité par unité.</h3><p>Écoute les mots, découvre leurs définitions en français et révise chaque règle avec un mini-test original.</p></div>
+            <div class="edito-intro-stat"><strong id="editoProgressValue">0%</strong><span>du vocabulaire commencé</span></div>
+          </article>
+          <div class="unit-grid" id="unitGrid"></div>
+          <article class="unit-detail panel hidden" id="unitDetail"></article>
+        </div>
+
+        <div id="editoDailyPanel" class="hidden">
+          <article class="daily-header">
+            <div><span class="section-label">15 MINUTES PAR JOUR</span><h3>Ton entraînement quotidien</h3><p>Une dictée de vocabulaire et une question de grammaire, choisies dans les unités Édito A2.</p></div>
+            <div class="daily-score"><strong id="dailyScore">0/2</strong><span>activités terminées</span></div>
+          </article>
+          <div class="daily-grid">
+            <article class="panel daily-task" id="dailyVocabTask"></article>
+            <article class="panel daily-task" id="dailyGrammarTask"></article>
+          </div>
+        </div>
       </section>
 
       <section class="view" id="view-progress" aria-label="Progression">
@@ -277,7 +311,7 @@
       <div class="dialog-heading"><div><span class="section-label">MON VOCABULAIRE</span><h3 id="wordDialogTitle">Ajouter un mot</h3></div><button class="icon-button close-dialog" type="button" aria-label="Fermer">×</button></div>
       <input id="editingWordId" type="hidden">
       <label class="field">Mot ou expression en français<input id="wordTerm" type="text" lang="fr" required></label>
-      <label class="field">Traduction en persan<input id="wordTranslation" type="text" dir="rtl" lang="fa" required></label>
+      <label class="field">Définition en français<input id="wordTranslation" type="text" lang="fr" required></label>
       <label class="field">Thème<input id="wordTheme" type="text" value="Mes mots" required></label>
       <label class="field">Phrase d'exemple<textarea id="wordExampleInput" rows="3" lang="fr"></textarea></label>
       <div class="dialog-actions"><button class="button button-soft close-dialog" type="button">Annuler</button><button class="button button-primary" type="submit">Enregistrer le mot</button></div>
@@ -288,8 +322,8 @@
     <form class="dialog-card large-dialog" id="importForm">
       <div class="dialog-heading"><div><span class="section-label">IMPORT RAPIDE</span><h3>Ajouter une liste de mots</h3></div><button class="icon-button close-dialog" type="button" aria-label="Fermer">×</button></div>
       <p>Une ligne par mot, avec ce format :</p>
-      <code>mot français | ترجمه فارسی | thème | phrase d'exemple</code>
-      <textarea id="importText" rows="11" placeholder="se souvenir | به یاد آوردن | Mes mots | Je me souviens de cette journée."></textarea>
+      <code>mot français | définition en français | thème | phrase d'exemple</code>
+      <textarea id="importText" rows="11" placeholder="se souvenir | Garder un événement dans sa mémoire. | Mes mots | Je me souviens de cette journée."></textarea>
       <p class="form-note" id="importNote">Les doublons sont ignorés automatiquement.</p>
       <div class="dialog-actions"><button class="button button-soft close-dialog" type="button">Annuler</button><button class="button button-primary" type="submit">Importer les mots</button></div>
     </form>
