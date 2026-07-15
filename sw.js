@@ -1,5 +1,5 @@
-const CACHE = "memora-a2-v1";
-const ASSETS = ["./", "./index.html", "./styles.css", "./app.js", "./core.js", "./data.js", "./icon.svg", "./manifest.webmanifest"];
+const CACHE = "memora-a2-v2";
+const ASSETS = ["./", "./index.html", "./styles.css", "./app.js", "./core.js", "./data.js", "./edito-data.js", "./icon.svg", "./manifest.webmanifest"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(ASSETS)));
